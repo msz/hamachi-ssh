@@ -28,6 +28,7 @@ import subprocess
 import os
 import re
 import sys
+import argparse
 
 
 IP_REGEX = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
@@ -81,7 +82,19 @@ def generate_hosts_for_records(records):
     return "\n\n".join([generate_host_for_record(r) for r in records])
 
 
-if __name__ == '__main__':
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file",
+                        nargs='?',
+                        help="the SSH config file to modify",
+                        default=DEFAULT_SSH_CONFIG_PATH)
+    parser.add_argument("-f", "--force",
+                        help="do not prompt for anything",
+                        action="store_true")
+    args = parser.parse_args()
+    config_path = args.file
+    force = args.force
+
     try:
         process = subprocess.Popen(["hamachi", "list"], stdout=subprocess.PIPE)
     except OSError as e:
@@ -94,14 +107,19 @@ if __name__ == '__main__':
     out, err = process.communicate()
     records = process_hamachi_output(out)
 
-    config_path = DEFAULT_SSH_CONFIG_PATH
-
     try:
         with open(config_path, 'r') as f:
+            found_file = True
             config = f.read()
     except FileNotFoundError as e:
-        sys.exit("SSH config file at {0} not found"
-                 .format(DEFAULT_SSH_CONFIG_PATH))
+        found_file = False
+        if not force:
+            print(("SSH config file at {0} not found."
+                   "Do you want to create it? [y]/n")
+                  .format(DEFAULT_SSH_CONFIG_PATH))
+            if input().lower().startswith('n'):
+                sys.exit()
+            config = ""
 
     found = find_records(config, records)
     not_found = [r for r in records if r not in found]
@@ -114,10 +132,15 @@ if __name__ == '__main__':
 
     if len(not_found)>0:
         config = "\n\n".join([config, generate_hosts_for_records(not_found)])
-        print("Warning: entries for: " +
-              ", ".join(r[0] for r in not_found) +
-              " not found. They have been generated for you. " +
-              "Please fill them out with appropriate information " +
+        if found_file:
+            print("Warning: Entries for: " +
+                  ", ".join(r[0] for r in not_found) +
+                  " not found. They have been generated for you. ")
+        else:
+            print("Entries for: " +
+                  ", ".join(r[0] for r in not_found) +
+                  " have been generated.")
+        print("Please fill them out with appropriate information "
               "needed to connect.")
 
     try:
@@ -128,3 +151,7 @@ if __name__ == '__main__':
                  "while trying to write new config file.")
 
     sys.exit()
+
+
+if __name__ == '__main__':
+    main()
