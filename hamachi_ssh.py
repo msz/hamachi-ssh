@@ -116,7 +116,7 @@ def main():
         if not force:
             print(("SSH config file at {0} not found. "
                    "Do you want to create it? [y]/n:")
-                  .format(DEFAULT_SSH_CONFIG_PATH),
+                  .format(config_path),
                   end='')
             if input().lower().startswith('n'):
                 sys.exit()
@@ -145,7 +145,10 @@ def main():
               "needed to connect.")
 
     try:
-        with open(config_path, 'w') as f:
+        d = os.path.dirname(config_path)
+        if not os.path.exists(d):
+            os.makedirs(d)
+        with os.fdopen(os.open(config_path, os.O_WRONLY | os.O_CREAT, 0o600), 'w') as f:
             f.write(config)
     except IOError:
         sys.exit("An unexpected error occured "
