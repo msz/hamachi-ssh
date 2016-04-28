@@ -114,9 +114,10 @@ def main():
     except FileNotFoundError as e:
         found_file = False
         if not force:
-            print(("SSH config file at {0} not found."
-                   "Do you want to create it? [y]/n")
-                  .format(DEFAULT_SSH_CONFIG_PATH))
+            print(("SSH config file at {0} not found. "
+                   "Do you want to create it? [y]/n:")
+                  .format(DEFAULT_SSH_CONFIG_PATH),
+                  end='')
             if input().lower().startswith('n'):
                 sys.exit()
             config = ""
