@@ -27,8 +27,12 @@ SOFTWARE.
 import subprocess
 import os
 import re
+import sys
+
 
 IP_REGEX = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+DEFAULT_SSH_CONFIG_PATH = os.path.join(os.path.expanduser('~'),
+                                       '.ssh/config')
 
 
 def process_hamachi_output(hamachi_output):
@@ -48,10 +52,19 @@ def extract_record(line):
     return record
 
 
+def find_records(ssh_configfiletext, records):
+    text = ssh_configfiletext
+    return [r for r in records
+            if re.search(r'\b({0})\b'.format(re.escape(r[0])),
+                         text,
+                         flags=re.IGNORECASE)
+            is not None]
+
+
 def update_hosts(ssh_configfiletext, records):
     text = ssh_configfiletext
     for r in records:
-        text = re.sub(r'(Host +' + re.escape(r[0]) + r'\s.*?Hostname +)'+IP_REGEX + r'(\s+.*?(?:\n$|\n\n))',
+        text = re.sub(r'(Host +{0}\s.*?Hostname +){1}(\s+.*?(?:\n$|\n\n))'.format(re.escape(r[0]), IP_REGEX),
                       r'\g<1>' + r[1] + r'\g<2>',
                       text,
                       count=1,
@@ -59,16 +72,59 @@ def update_hosts(ssh_configfiletext, records):
     return text
 
 
+def generate_host_for_record(record):
+    return ("Host {0}\n"
+            "Hostname {1}").format(record[0], record[1])
+
+
+def generate_hosts_for_records(records):
+    return "\n\n".join([generate_host_for_record(r) for r in records])
+
+
 if __name__ == '__main__':
     try:
         process = subprocess.Popen(["hamachi", "list"], stdout=subprocess.PIPE)
     except OSError as e:
         if e.errno == os.errno.ENOENT:
-            print("Hamachi for Linux is not installed. Get it from https://secure.logmein.com/labs/")
-            exit(-1)
+            sys.exit("Hamachi for Linux is not installed. " +
+                     "Get it from https://secure.logmein.com/labs/")
         else:
             raise
+
     out, err = process.communicate()
     records = process_hamachi_output(out)
 
+    config_path = DEFAULT_SSH_CONFIG_PATH
 
+    try:
+        with open(config_path, 'r') as f:
+            config = f.read()
+    except FileNotFoundError as e:
+        sys.exit("SSH config file at {0} not found"
+                 .format(DEFAULT_SSH_CONFIG_PATH))
+
+    found = find_records(config, records)
+    not_found = [r for r in records if r not in found]
+    del records
+
+    if len(found)>0:
+        config = update_hosts(config, found)
+        print("Updated config entries for: " +
+              ", ".join(r[0] for r in found) + ".")
+
+    if len(not_found)>0:
+        config = "\n\n".join([config, generate_hosts_for_records(not_found)])
+        print("Warning: entries for: " +
+              ", ".join(r[0] for r in not_found) +
+              " not found. They have been generated for you. " +
+              "Please fill them out with appropriate information " +
+              "needed to connect.")
+
+    try:
+        with open(config_path, 'w') as f:
+            f.write(config)
+    except IOError:
+        sys.exit("An unexpected error occured "
+                 "while trying to write new config file.")
+
+    sys.exit()
