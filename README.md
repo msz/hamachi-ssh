@@ -1,5 +1,7 @@
 # hamachi-ssh
-[LogMeIn Hamachi](https://secure.logmein.com/home) is a simple, excellent VPN solution. Although the command line client for Linux is in beta, it works very well. *hamachi-ssh* is a utility that uses information from the client to update your SSH config file, so you can SSH to your remote machines on the network using their Hamachi names. For example, if the machine's name is `battlestation`, instead of checking its IP and using that you can simply do:
+*for Linux and OSX*
+
+[LogMeIn Hamachi](https://secure.logmein.com/home) is a simple, excellent VPN solution. The clients for Linux and OSX expose a commandline interface. *hamachi-ssh* is a utility that uses information from the client to update your SSH config file, so you can SSH to your remote machines on the network using their Hamachi names. For example, if the machine's name is `battlestation`, instead of checking its IP and using that you can simply do:
 
     ssh user@battlestation
     
